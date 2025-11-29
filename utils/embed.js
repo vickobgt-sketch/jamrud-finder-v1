@@ -10,7 +10,6 @@ export async function getEmbedding(buffer) {
     session = await ort.InferenceSession.create(modelPath);
   }
 
-  // convert to float32 tensor
   const img = await sharp(buffer)
     .removeAlpha()
     .raw()
@@ -20,7 +19,7 @@ export async function getEmbedding(buffer) {
     1,
     img.info.channels,
     img.info.height,
-    img.info.width
+    img.info.width,
   ]);
 
   const result = await session.run({ input: tensor });
