@@ -12,7 +12,8 @@
     "react": "17.0.2",
     "react-dom": "17.0.2",
     "onnxruntime-node": "^1.14.0",
-    "multer": "^1.4.5",
+    "multer": "^1.4.5-lts.1",
     "sharp": "^0.30.6"
   }
 }
+
