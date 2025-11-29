@@ -3,8 +3,8 @@ import multer from "multer";
 import sharp from "sharp";
 import path from "path";
 import fs from "fs";
-import { getEmbedding } from "../../../utils/embed";
-import { findMostSimilar } from "../../../utils/similarity";
+import { getEmbedding } from "../../utils/embed";
+import { findMostSimilar } from "../../utils/similarity";
 
 export const config = {
   api: {
@@ -18,41 +18,49 @@ const handler = nextConnect();
 handler.use(upload.single("file"));
 
 handler.post(async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: "No file uploaded" });
-  }
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
-  // resize image ke 224x224
-  const buffer = await sharp(req.file.buffer)
-    .resize(224, 224)
-    .toBuffer();
+    // Resize ke 224x224 (format ML)
+    const buffer = await sharp(req.file.buffer)
+      .resize(224, 224)
+      .toBuffer();
 
-  // get embedding
-  const queryEmbedding = await getEmbedding(buffer);
+    // Generate embedding input
+    const queryEmbedding = await getEmbedding(buffer);
 
-  // load dataset embeddings
-  const datasetPath = path.join(process.cwd(), "dataset");
-  const folders = fs.readdirSync(datasetPath);
+    // Path dataset
+    const datasetPath = path.join(process.cwd(), "dataset");
+    const folders = fs.readdirSync(datasetPath);
 
-  let bestMatch = null;
+    let bestMatch = null;
 
-  for (const folder of folders) {
-    const folderPath = path.join(datasetPath, folder);
-    const files = fs.readdirSync(folderPath);
+    for (const folder of folders) {
+      const folderPath = path.join(datasetPath, folder);
+      const files = fs.readdirSync(folderPath);
 
-    for (const file of files) {
-      const imgBuffer = fs.readFileSync(path.join(folderPath, file));
-      const emb = await getEmbedding(imgBuffer);
+      for (const file of files) {
+        const filePath = path.join(folderPath, file);
+        if (!/\.(jpg|jpeg|png)$/i.test(file)) continue;
 
-      const score = findMostSimilar(queryEmbedding, emb);
+        const imgBuffer = fs.readFileSync(filePath);
+        const emb = await getEmbedding(imgBuffer);
 
-      if (!bestMatch || score > bestMatch.score) {
-        bestMatch = { model: folder, score };
+        const score = findMostSimilar(queryEmbedding, emb);
+
+        if (!bestMatch || score > bestMatch.score) {
+          bestMatch = { model: folder, score };
+        }
       }
     }
-  }
 
-  res.json(bestMatch || { model: "Unknown", score: 0 });
+    res.json(bestMatch || { model: "Unknown", score: 0 });
+  } catch (err) {
+    console.error("Error in /api/predict:", err);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 export default handler;
