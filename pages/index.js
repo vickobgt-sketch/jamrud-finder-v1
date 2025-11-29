@@ -13,17 +13,17 @@ export default function Home() {
 
     const res = await fetch("/api/predict", {
       method: "POST",
-      body: formData
+      body: formData,
     });
 
     const data = await res.json();
     setResult(data);
-  }
+  };
 
   return (
     <div style={{ padding: 30 }}>
       <h1>Jamrud Finder v1 👞💚</h1>
-      <p>Upload foto untuk cek model yang paling mirip.</p>
+      <p>Upload foto untuk cek model terdekat.</p>
 
       <input type="file" onChange={handleUpload} />
 
