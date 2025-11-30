@@ -1,66 +1,29 @@
-import nextConnect from "next-connect";
-import multer from "multer";
-import sharp from "sharp";
-import path from "path";
-import fs from "fs";
-import { getEmbedding } from "../../utils/embed";
-import { findMostSimilar } from "../../utils/similarity";
-
 export const config = {
-  api: {
-    bodyParser: false,
-  },
+  runtime: 'edge',
 };
 
-const upload = multer({ storage: multer.memoryStorage() });
-
-const handler = nextConnect();
-handler.use(upload.single("file"));
-
-handler.post(async (req, res) => {
+export default async function handler(req) {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
+    const body = await req.formData();
+    // Get file but ignore content (dummy mode)
+    const file = body.get('file');
 
-    // Resize ke 224x224 (format ML)
-    const buffer = await sharp(req.file.buffer)
-      .resize(224, 224)
-      .toBuffer();
+    // Dummy random score
+    const score = Math.random();
 
-    // Generate embedding input
-    const queryEmbedding = await getEmbedding(buffer);
-
-    // Path dataset
-    const datasetPath = path.join(process.cwd(), "dataset");
-    const folders = fs.readdirSync(datasetPath);
-
-    let bestMatch = null;
-
-    for (const folder of folders) {
-      const folderPath = path.join(datasetPath, folder);
-      const files = fs.readdirSync(folderPath);
-
-      for (const file of files) {
-        const filePath = path.join(folderPath, file);
-        if (!/\.(jpg|jpeg|png)$/i.test(file)) continue;
-
-        const imgBuffer = fs.readFileSync(filePath);
-        const emb = await getEmbedding(imgBuffer);
-
-        const score = findMostSimilar(queryEmbedding, emb);
-
-        if (!bestMatch || score > bestMatch.score) {
-          bestMatch = { model: folder, score };
-        }
-      }
-    }
-
-    res.json(bestMatch || { model: "Unknown", score: 0 });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        fileName: file?.name || "unknown",
+        model: "dummy-mini-model",
+        score,
+      }),
+      { status: 200 }
+    );
   } catch (err) {
-    console.error("Error in /api/predict:", err);
-    res.status(500).json({ error: "Server error" });
+    return new Response(
+      JSON.stringify({ success: false, error: err.toString() }),
+      { status: 500 }
+    );
   }
-});
-
-export default handler;
+}
